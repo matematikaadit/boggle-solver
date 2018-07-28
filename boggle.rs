@@ -165,42 +165,32 @@ struct DictBuilder {
     buff: BufReader<File>,
 }
 
-/// Our dictionary, just a set of string, and it's prefix
+/// Our dictionary, using Trie
 struct Dict {
-    words: HashSet<String>,
-    prefix: HashSet<String>,
+    trie: Trie,
 }
 
 impl Dict {
     /// Create new empty Dict
     fn new() -> Dict {
         Dict {
-            words: HashSet::new(),
-            prefix: HashSet::new(),
+            trie: Trie::default()
         }
     }
 
-    /// Insert a word and all of it's prefix
+    /// Insert a word the the dictionary
     fn insert(&mut self, word: String) {
-        let mut pop_word = word.clone();
-        self.words.insert(word);
-        while !self.prefix.contains(&pop_word) {
-            self.prefix.insert(pop_word.clone());
-            pop_word.pop();
-            if pop_word.is_empty() {
-                break;
-            }
-        }
+        self.trie.insert(&word);
     }
 
     /// Check if a word contained in the dictionary
     fn contains(&self, word: &String) -> bool {
-        self.words.contains(word)
+        self.trie.contains(word)
     }
 
     /// Check if a prefix contained in the dictionary
     fn is_prefix(&self, prefix: &String) -> bool {
-        self.prefix.contains(prefix)
+        self.trie.is_prefix(prefix)
     }
 }
 
@@ -225,5 +215,75 @@ impl DictBuilder {
             filtered.insert(word);
         }
         filtered
+    }
+}
+
+type Key = char;
+type KeySeq = str;
+
+#[derive(Default)]
+struct Trie {
+    val: bool,
+    children: Vec<KeyPair>,
+}
+
+struct KeyPair {
+    key: Key,
+    next: Trie,
+}
+
+impl KeyPair {
+    fn new(key: Key) -> KeyPair {
+        KeyPair { key, next: Trie::default() }
+    }
+}
+
+impl Trie {
+    /// Traverse the trie given the key sequence, return None when
+    /// the sequence isn't in the trie.
+    fn traverse(&self, keyseq: &KeySeq) -> Option<&Trie> {
+        let mut current = self;
+        for c in keyseq.chars() {
+            match current.children.iter().find(|&KeyPair{key, ..}| *key == c) {
+                Some(KeyPair{next, ..}) => current = next,
+                None => return None,
+            }
+        }
+        Some(current)
+    }
+    /// Check if a key sequence is in the trie.
+    fn is_prefix(&self, keyseq: &KeySeq) -> bool {
+        match self.traverse(keyseq) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+    /// Check if a key sequence is contained in the tree.
+    fn contains(&self, keyseq: &KeySeq) -> bool {
+        match self.traverse(keyseq) {
+            Some(trie) => trie.val,
+            None => false,
+        }
+    }
+    /// Insert the key sequence into the trie.
+    fn insert(&mut self, keyseq: &KeySeq) {
+        let mut last = self;
+        for key in keyseq.chars() {
+            let mut current = last;
+            last = current.find_mut(key);
+        }
+        last.val = true;
+    }
+    /// Find a key in the trie children, push it if not found.
+    /// Return the mutable reference to the associated trie.
+    fn find_mut(&mut self, key: Key) -> &mut Trie {
+        for i in 0..self.children.len() {
+            if self.children[i].key == key {
+                return &mut self.children[i].next;
+            }
+        }
+        self.children.push(KeyPair::new(key));
+        let len = self.children.len();
+        &mut self.children[len - 1].next
     }
 }
