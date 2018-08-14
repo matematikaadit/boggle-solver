@@ -216,7 +216,8 @@ impl DictBuilder {
     fn filter(self, puzzle: &Puzzle) -> Dict {
         let mut filtered = Dict::new();
         for word in self.buff.lines() {
-            let word = word.unwrap().to_lowercase(); // only use lowercase char
+            let mut word = word.unwrap();
+            word.make_ascii_lowercase(); // only use lowercase char
             // minimum of 3 letter word
             // all letter should be contained in the puzzle
             if word.len() < 3 || word.chars().any(|c| !puzzle.contains(c)) {
